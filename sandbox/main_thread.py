@@ -6,6 +6,7 @@ import threading
 import panel as pn
 pn.extension()
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
 import traceback
 from datetime import datetime
@@ -104,6 +105,31 @@ class MainThread:
         self._error_message = ''
         self._widget_error_markdown = pn.pane.Markdown("<p>Open_AR_Sandbox</p>")
 
+        # <MB>
+        self.saved_frame = None  # Initialize saved_frame
+        self.InSAR_mode_flag = False # indicate InSAR mode on (1) or off (0)
+        self.diff_mod = 10 # default difference modulator for InSAR mode
+        self.diff_minmax = 10 # min max of total height diff for unwrapped insar mode
+
+        # initialise dismph cmap
+        from matplotlib.colors import LinearSegmentedColormap
+        clist = ['#f579cd', '#f67fc6', '#f686bf', '#f68cb9', '#f692b3', '#f698ad',
+                            '#f69ea7', '#f6a5a1', '#f6ab9a', '#f6b194', '#f6b78e', '#f6bd88',
+                            '#f6c482', '#f6ca7b', '#f6d075', '#f6d66f', '#f6dc69', '#f6e363',
+                            '#efe765', '#e5eb6b', '#dbf071', '#d0f477', '#c8f67d', '#c2f684',
+                            '#bbf68a', '#b5f690', '#aff696', '#a9f69c', '#a3f6a3', '#9cf6a9',
+                            '#96f6af', '#90f6b5', '#8af6bb', '#84f6c2', '#7df6c8', '#77f6ce',
+                            '#71f6d4', '#6bf6da', '#65f6e0', '#5ef6e7', '#58f0ed', '#52e8f3',
+                            '#4cdbf9', '#7bccf6', '#82c4f6', '#88bdf6', '#8eb7f6', '#94b1f6',
+                            '#9aabf6', '#a1a5f6', '#a79ef6', '#ad98f6', '#b392f6', '#b98cf6',
+                            '#bf86f6', '#c67ff6', '#cc79f6', '#d273f6', '#d86df6', '#de67f6',
+                            '#e561f6', '#e967ec', '#ed6de2', '#f173d7']
+        colormap = LinearSegmentedColormap.from_list('dismph', clist, N=256)
+        if cm.get_cmap('dismph') is None:
+            from matplotlib.cm import register_cmap
+            register_cmap(name ='dismph', cmap=colormap)
+        # </MB>
+
     # @property @TODO: test if this works
     # def sb_params(self):
     #    return {'frame': self.sensor.get_frame(),
@@ -144,6 +170,19 @@ class MainThread:
             else:
                 self.previous_frame = frame
                 self.sb_params['same_frame'] = False
+
+        if self.saved_frame is not None and self.InSAR_mode_flag == True:
+            current_frame = self.sensor.get_frame()
+            difference = current_frame - self.saved_frame
+            if self.wrapped == True:
+                frame = numpy.mod(difference,self.diff_mod)
+                cmap_bounds = [ frame.min(), frame.max()]
+            else:
+                frame = difference
+                cmap_bounds = [-self.diff_minmax, self.diff_minmax]
+
+            self.sb_params['extent'] = [0, frame.shape[1], 0, frame.shape[0], cmap_bounds[0], cmap_bounds[1]]
+        
         self.sb_params['frame'] = frame
 
         # filter
@@ -241,6 +280,134 @@ class MainThread:
             return True
         logger.error("Frame and path not valid: Frame -> %s, Path -> %s" % (frame, from_file))
         return False
+
+    def save_frame(self, to_file: str):
+        """
+        Save the current frame to a .npy or .npz file.
+
+        Args:
+            to_file (str): Path to the file where the frame should be saved.
+        """
+        if self.previous_frame is None:
+            logger.error("No frame to save")
+            return False
+
+        ext = to_file.split(".")[-1]
+        try:
+            if ext == "npy":
+                numpy.save(to_file, self.previous_frame)
+                logger.info(f"Frame saved to {to_file}")
+                return True
+            elif ext == "npz":
+                numpy.savez_compressed(to_file, self.previous_frame)
+                logger.info(f"Frame saved to {to_file}")
+                return True
+            else:
+                logger.error(f"{to_file} format not recognized. Please use .npy or .npz")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to save frame: {e}", exc_info=True)
+            return False
+
+    def change_colormap(self, cmap_name: str):
+        """
+        Change the colormap of the current frame.
+
+        Args:
+            cmap_name (str): Name of the colormap to use.
+        """
+        try:
+            cmap = cm.get_cmap(cmap_name)
+            self.sb_params['cmap'] = cmap
+            self.cmap_frame.update(self.sb_params)
+            logger.info(f"Colormap changed to {cmap_name}")
+        except Exception as e:
+            logger.error(f"Failed to change colormap: {e}", exc_info=True)
+            return False
+        return True
+    
+
+    def save_frame2(self):
+        self.saved_frame = self.previous_frame.copy()
+        
+        logger.info(f"Current frame saved for InSAR mode. size {numpy.shape(self.saved_frame)}")
+
+    def unload_frame(self):
+        self.saved_frame = None
+        self.InSAR_mode_flag = False
+        self.sb_params['cmap'] = cm.get_cmap('gist_earth')
+        self.sb_params['active_shading'] = True # re-enable shading for topo map
+        self.sb_params['active_contours'] = True
+        logger.info("Removed save frame, return to default topography mode.")
+
+    def InSAR_mode(self, wrapped = True, diff_mod = 10, cmap = 'dismph',contour_flag=False,diff_minmax = 10):
+        # self.save_frame2()
+        self.diff_mod = diff_mod
+        self.InSAR_mode_flag = True
+        self.wrapped = wrapped
+        self.diff_minmax = diff_minmax
+        self.sb_params['active_shading'] = False # Disable shading for difference map
+        self.sb_params['active_contours'] = contour_flag
+        self.sb_params['cmap'] = cm.get_cmap(cmap)
+
+        self.thread_status = 'running'
+        asyncio.create_task(self.thread_loop())
+
+
+    def show_lahars(self, elev, lahars, stream = None, ec_line = None, ):
+        """
+        Display the lahar simulation results.
+
+        Args:
+            elev: numpy.ndarray - Elevation data.
+            stream: numpy.ndarray - Stream flow lines (rasterized).
+            ec_line: numpy.ndarray - Energy cone line (rasterized).
+            lahars: numpy.ndarray - Lahar inundation area.
+        """
+        try:
+            # Update elevation frame
+            self.load_frame(frame=elev)
+            self.update()
+
+            # Create a colormap for the different layers
+            stream_cmap = cm.get_cmap('Greys')
+            ec_line_cmap = cm.get_cmap('Greens')
+            lahars_cmap = cm.get_cmap('Reds')
+
+            # make lahar_alpha
+            lahar_alpha = numpy.zeros_like(lahars)
+            lahar_alpha[lahars>0] = 1
+
+            # ax.imshow(elev_data,cmap='viridis')
+
+            # ax.imshow(stream_data,cmap='Greys',alpha=stream_data,zorder=100,interpolation='nearest')
+            # # ax.imshow(stream_data,cmap='Greens')
+
+            # ax.imshow(EC_line_data,cmap='Greens',alpha = EC_line_data,interpolation='nearest')
+
+            # ax.imshow(lahar_data,cmap='Reds',alpha = lahar_data,interpolation='nearest')
+
+            
+            # Overlay the energy cone line
+            if ec_line is not None:
+                self.projector.ax.imshow(ec_line, cmap=ec_line_cmap, alpha=ec_line, extent=self.sensor.extent, zorder=1, interpolation='nearest')
+
+            # Overlay the lahar inundation area
+            self.projector.ax.imshow(lahars, cmap=lahars_cmap, alpha=lahar_alpha, extent=self.sensor.extent, zorder=2, interpolation='nearest')
+
+            # Overlay the stream flow lines
+            if stream is not None:
+                self.projector.ax.imshow(stream, cmap=stream_cmap, alpha=stream, extent=self.sensor.extent, zorder=3, interpolation='nearest')
+            
+            # Trigger the projector to render the updated frame
+            self.projector.trigger()
+
+            logger.info("Lahar simulation results displayed successfully.")
+        except Exception as e:
+            logger.error(f"Failed to display lahar simulation results: {e}", exc_info=True)
+
+
+
 
     @staticmethod
     def normalize_topography(dem, target_extent):

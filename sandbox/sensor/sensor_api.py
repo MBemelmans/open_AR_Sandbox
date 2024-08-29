@@ -4,6 +4,14 @@ import scipy
 import scipy.ndimage
 from warnings import warn
 import json
+import os,sys
+sys.path.append('../../../')
+sys.path.append('.')
+sys.path.append('../')
+sys.path.append('../../')
+sys.path.append('')
+sys.path.append('/Applications/anaconda3/envs/sandbox-env/lib/python3.8/site-packages/')
+
 from sandbox import set_logger
 logger = set_logger(__name__)
 
@@ -58,7 +66,7 @@ class Sensor:
             try:
                 if _platform == 'Windows':
                     import pykinect2
-                elif _platform == 'Linux':
+                elif _platform == 'Linux'  or  _platform == 'Darwin':
                     import freenect2
                 self.Sensor = KinectV2()
             except ImportError:

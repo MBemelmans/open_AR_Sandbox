@@ -1,6 +1,9 @@
 # %%
 import os, sys
 sys.path.append('.')
+sys.path.append('../')
+sys.path.append('../../')
+sys.path.append('/Applications/anaconda3/envs/sandbox-env/lib/python3.8/site-packages/')
 import pooch
 from sandbox import _test_data, set_logger
 from pooch import HTTPDownloader

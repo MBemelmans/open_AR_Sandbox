@@ -9,7 +9,7 @@ try:
     if _platform == 'Windows':
         from pykinect2 import PyKinectV2  # Wrapper for KinectV2 Windows SDK
         from pykinect2 import PyKinectRuntime
-    elif _platform == 'Linux':
+    elif _platform == 'Linux' or  _platform == 'Darwin':
         os.environ["LIBFREENECT2_LOGGER_LEVEL"] = "ERROR"
         from freenect2 import Device, FrameType
 
@@ -51,7 +51,7 @@ class KinectV2:
                                                           PyKinectV2.FrameSourceTypes_Depth |
                                                           PyKinectV2.FrameSourceTypes_Infrared)
 
-        elif _platform == 'Linux':
+        elif _platform == 'Linux' or  _platform == 'Darwin':
             # Threading
             self._lock = threading.Lock()
             self._thread = None
@@ -122,7 +122,7 @@ class KinectV2:
             depth_flattened = self.device.get_last_depth_frame()
             self.depth = depth_flattened.reshape(
                 (self.depth_height, self.depth_width))  # reshape the array to 2D with native resolution of the kinectV2
-        elif _platform == 'Linux':
+        elif _platform == 'Linux' or  _platform == 'Darwin':
             # assert self._thread_status == "running"
             self.depth = self._depth
         return self.depth
@@ -137,7 +137,7 @@ class KinectV2:
             ir_flattened = self.device.get_last_infrared_frame()
             # reshape the array to 2D with native resolution of the kinectV2
             self.ir_frame_raw = numpy.flipud(ir_flattened.reshape((self.depth_height, self.depth_width)))
-        elif _platform == 'Linux':
+        elif _platform == 'Linux' or  _platform == 'Darwin':
             # assert self._thread_status == "running"
             self.ir_frame_raw = self._ir
         return self.ir_frame_raw
@@ -165,7 +165,7 @@ class KinectV2:
         if _platform == 'Windows':
             color= numpy.array([self.device.get_last_color_frame()])
 
-        elif _platform == 'Linux':
+        elif _platform == 'Linux' or  _platform == 'Darwin':
             # assert self._thread_status == "running"
             color = self._color
 

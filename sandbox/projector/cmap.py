@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import matplotlib.colors as mcolors
+from matplotlib.colors import LinearSegmentedColormap
 import copy
 import panel as pn
 import weakref
@@ -23,6 +25,8 @@ class CmapModule:
             vmax (float): ...
             extent (list): ...
         """
+
+
         # z-range handling
         self.lock = None  # For locking the multithreading while using bokeh server
         self.extent = extent[:4]
@@ -43,10 +47,31 @@ class CmapModule:
         self._col = None  # weakreference of self.col
         self.active = True
 
+        # <MB>
+        from matplotlib.colors import LinearSegmentedColormap
+        clist = ['#f579cd', '#f67fc6', '#f686bf', '#f68cb9', '#f692b3', '#f698ad',
+                            '#f69ea7', '#f6a5a1', '#f6ab9a', '#f6b194', '#f6b78e', '#f6bd88',
+                            '#f6c482', '#f6ca7b', '#f6d075', '#f6d66f', '#f6dc69', '#f6e363',
+                            '#efe765', '#e5eb6b', '#dbf071', '#d0f477', '#c8f67d', '#c2f684',
+                            '#bbf68a', '#b5f690', '#aff696', '#a9f69c', '#a3f6a3', '#9cf6a9',
+                            '#96f6af', '#90f6b5', '#8af6bb', '#84f6c2', '#7df6c8', '#77f6ce',
+                            '#71f6d4', '#6bf6da', '#65f6e0', '#5ef6e7', '#58f0ed', '#52e8f3',
+                            '#4cdbf9', '#7bccf6', '#82c4f6', '#88bdf6', '#8eb7f6', '#94b1f6',
+                            '#9aabf6', '#a1a5f6', '#a79ef6', '#ad98f6', '#b392f6', '#b98cf6',
+                            '#bf86f6', '#c67ff6', '#cc79f6', '#d273f6', '#d86df6', '#de67f6',
+                            '#e561f6', '#e967ec', '#ed6de2', '#f173d7']
+        colormap = LinearSegmentedColormap.from_list('dismph', clist, N=256)
+        if cm.get_cmap('dismph') is None:
+            from matplotlib.cm import register_cmap
+            register_cmap(name ='dismph', cmap=colormap)
+        # </MB>
+
         # Relief shading
         self.relief_shading = True
         self.light_source = LightSource()
         self._light_simulation = False
+
+
 
         logger.info("CmapModule loaded successfully")
 
@@ -61,7 +86,14 @@ class CmapModule:
         self.vmin = extent[-2]
         self.vmax = extent[-1]
         set_cbar = sb_params.get("set_colorbar")
-        set_cbar(self.vmin, self.vmax, cmap, norm)
+        if callable(set_cbar):
+            if norm is None:
+                set_cbar(self.vmin, self.vmax, cmap)
+            else:
+                set_cbar(self.vmin, self.vmax, cmap, norm)
+        else:
+            logger.warning("set_colorbar is not callable.")
+
 
         if active_shade and self.relief_shading:
             if len(data.shape) > 2:  # 3 Then is an image already
@@ -181,13 +213,25 @@ class CmapModule:
         return panel
 
     def _create_widgets(self):
+        clist = ['#f579cd', '#f67fc6', '#f686bf', '#f68cb9', '#f692b3', '#f698ad',
+                     '#f69ea7', '#f6a5a1', '#f6ab9a', '#f6b194', '#f6b78e', '#f6bd88',
+                     '#f6c482', '#f6ca7b', '#f6d075', '#f6d66f', '#f6dc69', '#f6e363',
+                     '#efe765', '#e5eb6b', '#dbf071', '#d0f477', '#c8f67d', '#c2f684',
+                     '#bbf68a', '#b5f690', '#aff696', '#a9f69c', '#a3f6a3', '#9cf6a9',
+                     '#96f6af', '#90f6b5', '#8af6bb', '#84f6c2', '#7df6c8', '#77f6ce',
+                     '#71f6d4', '#6bf6da', '#65f6e0', '#5ef6e7', '#58f0ed', '#52e8f3',
+                     '#4cdbf9', '#7bccf6', '#82c4f6', '#88bdf6', '#8eb7f6', '#94b1f6',
+                     '#9aabf6', '#a1a5f6', '#a79ef6', '#ad98f6', '#b392f6', '#b98cf6',
+                     '#bf86f6', '#c67ff6', '#cc79f6', '#d273f6', '#d86df6', '#de67f6',
+                     '#e561f6', '#e967ec', '#ed6de2', '#f173d7']
+        colormap = LinearSegmentedColormap.from_list('dismph', clist, N=256)
         self._widget_plot_cmap = pn.widgets.Select(name='Choose a colormap',
                                                    # use the following line to enable all colormaps
                                                    # options=plt.colormaps(),
                                                    # limit to only specified color maps
                                                    options=['gist_earth', 'terrain', 'ocean', 'seismic',
                                                             'RdBu', "RdBu_r", "Greys", "Greys_r",
-                                                            'viridis', 'viridis_r', 'magma', 'magma_r',
+                                                            'viridis', 'viridis_r', 'magma', 'magma_r','dismph',
                                                             ],
                                                    value=self.cmap.name)
         self._widget_plot_cmap.param.watch(self._callback_plot_cmap, 'value', onlychanged=False)

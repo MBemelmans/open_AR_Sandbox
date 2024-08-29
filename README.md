@@ -64,6 +64,13 @@ However, most of these common AR Sandboxes are limited to the visualization of t
 
 For this reason, we have developed Open AR-Sandbox, an augmented reality sandbox designed specifically for the use in geoscience education. In addition to the visualization of topography it can display geologic subsurface information such as the outcropping lithology, creating a dynamic and interactive geological map. The relations of subsurface structures, topography and outcrop can be explored in a playful and comprehensible way.
 
+
+Further Developements
+---------------------
+I have added to the open AR-sandbox by creating an 'InSAR' mode/module that can show changes in the height of the sand from a saved frame and display these as if they were interferograms made through InSAR. This can be experimented with using the Main_Thread_InSAR notebook.
+
+I have also added an experimental link to the LaharZ simulation software (github: keith1815/LaharZ) to allow for lahar simulations these need some additional files. Distribution of the LaharZ related files (laharz.py; stream_flow.py; fill_results.py; test_geotiff.py; trim_geotiff.py) fall under the license listed in keith1815/LaharZ. 
+
 Features
 -------
 * compatible with most AR-sandbox builds
@@ -179,10 +186,12 @@ specific setup dependent on the Kinect version you are using. In the following w
 instructions.\
 Now download or clone this repository [open_AR_Sandbox](https://github.com/cgre-aachen/open_AR_Sandbox) from github.
 
-1. First clone the repository:
+1. First clone the repository (including InSAR and Lahar modes):
 ```
-git clone https://github.com/cgre-aachen/open_AR_Sandbox.git
+git clone https://github.com//MBemelmans/open_AR_Sandbox.git
 ```
+
+
 2. Enter the new downloaded project folder:
 ```
 cd open_AR_Sandbox
@@ -377,7 +386,61 @@ replace the <...> with your specific path.
 ```
 sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/envs/sandbox-env/lib/
 ```
+### For MacOS
 
+#### Kinect v2 - freenect2
+or pylibfreenect2 \
+For this we are going to use a python interface for the library 
+[libfreenect2](https://github.com/OpenKinect/libfreenect2)
+called [freenect2](https://github.com/rjw57/freenect2-python). 
+* First we need to install the [freenect2](https://github.com/rjw57/freenect2-python) as described in the installation 
+guide. 
+The steps can be summarized as follows (refer to any problems regarding installation in to 
+[link](https://rjw57.github.io/freenect2-python/))
+```
+git clone https://github.com/OpenKinect/libfreenect2.git
+cd libfreenect2
+```
+```
+brew update                                             
+brew install libusb
+brew install glfw3
+```
+```
+brew install jpeg-turbo 
+```
+```
+brew tap brewsci/science                                
+brew install openni2
+export OPENNI2_REDIST=/usr/local/lib/ni2
+export OPENNI2_INCLUDE=/usr/local/include/ni
+```
+```
+mkdir build && cd build                                 
+cmake ..
+make
+make install
+```
+
+```
+./bin/Protonect  
+```
+
+```
+export PKG_CONFIG_PATH=$HOME/freenect2/lib/pkgconfig 
+```
+
+```
+pip install freenect2 
+```
+
+```
+sudo cp $HOME/freenect2/lib/libfreenect2{.so,.so.0.2,.so.0.2.0} $HOME/anaconda3/envs/sandbox-env/lib/
+```
+
+```
+export PKG_CONFIG_PATH=/Users/tz20896/Documents/PhD/AR_SANDBOX/freenect2/lib/pkgconfig
+```
 
 ### LiDAR L515 Installation 
 
